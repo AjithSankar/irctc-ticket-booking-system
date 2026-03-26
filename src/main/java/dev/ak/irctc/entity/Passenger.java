@@ -12,6 +12,7 @@ import java.util.UUID;
 @Setter
 @Getter
 @ToString
+@Builder
 public class Passenger {
 
     @Id

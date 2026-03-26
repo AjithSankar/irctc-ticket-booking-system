@@ -3,12 +3,15 @@ package dev.ak.irctc.entity;
 import dev.ak.irctc.enums.SeatStatus;
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "seat_inventory", indexes = {
-    // Crucial index for the `getAvailability` flow
-    @Index(name = "idx_seat_inv_search", columnList = "train_no, journey_date, status")
+@Table(name = "seat_inventory",
+        uniqueConstraints = @UniqueConstraint(
+        columnNames = {"train_no", "journey_date", "seat_number"}
+), indexes = {
+        @Index(name = "idx_seat_inv_search", columnList = "train_no, journey_date, status")
 })
 @Getter
 @Setter
@@ -20,7 +23,6 @@ public class SeatInventory {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Mapping FK to the unique train_no rather than Train PK as defined in your schema
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "train_no", referencedColumnName = "train_no")
     private Train train;
@@ -40,6 +42,4 @@ public class SeatInventory {
     @Enumerated(EnumType.STRING)
     private SeatStatus status;
 
-    @Version
-    private Long version; 
 }

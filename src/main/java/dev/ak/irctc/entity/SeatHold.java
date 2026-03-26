@@ -4,10 +4,14 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 
 @Entity
-@Table(name = "seat_hold")
+@Table(name = "seat_hold", indexes = {
+        @Index(name = "idx_seat_hold_search", columnList = "train_no, journey_date, status"),
+        @Index(name = "idx_seat_hold_expiry", columnList = "expires_at")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -15,8 +19,8 @@ import java.time.LocalDateTime;
 @Builder
 public class SeatHold {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(name = "seat_number")
     private Integer seatNumber;
