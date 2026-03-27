@@ -21,7 +21,7 @@ public class Booking {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "booking_id", updatable = false, nullable = false)
+    @Column(name = "booking_id", nullable = false)
     private UUID bookingId;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -4,6 +4,9 @@ import dev.ak.irctc.enums.TrainType;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "trains")
 @Getter
@@ -12,7 +15,6 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class Train {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -27,8 +29,8 @@ public class Train {
     @Column(name = "train_type")
     private TrainType trainType;
 
-    @Column(name = "from_station")
-    private String fromStation;
+    @Column(name = "source_station")
+    private String sourceStation;
 
     @Column(name = "destination_station")
     private String destinationStation;
@@ -36,7 +38,9 @@ public class Train {
     @Column(name = "runs_on")
     private String runsOn;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "schedule_id")
-    private TrainSchedule schedule;
+    // One Train has Many Schedule Stops.
+    // OrderBy ensures that when we fetch the schedule, it's strictly ordered from source to destination.
+    @OneToMany(mappedBy = "train", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OrderBy("stopSequence ASC")
+    private List<TrainSchedule> routeSchedules = new ArrayList<>();
 }

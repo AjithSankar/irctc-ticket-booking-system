@@ -5,6 +5,8 @@ import dev.ak.irctc.entity.SeatInventory;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.UUID;
+
 @Repository
-public interface SeatHoldRepository extends JpaRepository<SeatHold, Long> {
+public interface SeatHoldRepository extends JpaRepository<SeatHold, UUID> {
 }

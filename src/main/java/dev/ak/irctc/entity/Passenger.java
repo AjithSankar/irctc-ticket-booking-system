@@ -1,5 +1,6 @@
 package dev.ak.irctc.entity;
 
+import dev.ak.irctc.enums.PassengerStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -37,5 +38,8 @@ public class Passenger {
 
     @Column(name = "berth_type")
     private String berthType;
+
+    @Enumerated(EnumType.STRING)
+    private PassengerStatus status;
 
 }

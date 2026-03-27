@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "seat_inventory",
@@ -33,6 +34,9 @@ public class SeatInventory {
     @Column(name = "seat_number")
     private Integer seatNumber;
 
+    @Column(name = "coach")
+    private String coach;
+
     @Column(name = "source_station")
     private String sourceStation;
 
@@ -41,5 +45,8 @@ public class SeatInventory {
 
     @Enumerated(EnumType.STRING)
     private SeatStatus status;
+
+    @Column(name = "blocked_at")
+    private LocalDateTime blockedAt;
 
 }
