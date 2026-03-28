@@ -46,7 +46,7 @@ public class BookingService {
 
     @Transactional
     public BookingResponseDTO createBooking(String idempotencyKey, BookingRequest bookingRequest) {
-        log.info("createBooking {}", idempotencyKey);
+        log.debug("createBooking {}", idempotencyKey);
         // Idempotency check
         Optional<Booking> optionalBooking = bookingRepository.findByIdempotencyKey(idempotencyKey);
         if (optionalBooking.isPresent()) {

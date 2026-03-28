@@ -63,7 +63,7 @@ public class BookingWorker {
         while (!Thread.currentThread().isInterrupted()) {
             try {
                 BookingRequestDTO bookingRequestDTO = bookingQueue.take();
-                log.info("Booking request received {}", bookingRequestDTO);
+                log.info("Booking request received {}", bookingRequestDTO.bookingId());
                 processBooking(bookingRequestDTO);
             } catch (InterruptedException e) {
                 log.info("Worker thread interrupted, shutting down gracefully");
@@ -80,7 +80,7 @@ public class BookingWorker {
         try {
             log.info("Processing booking request: {}", bookingRequestDTO.bookingId());
             seatAllocationService.allocateSeats(bookingRequestDTO);
-            log.info("Completed booking request: {}", bookingRequestDTO);
+            log.info("Completed booking request: {}", bookingRequestDTO.bookingId());
         } catch (Exception e) {
             log.error("Failed processing booking request: {}", bookingRequestDTO.bookingId(), e);
         }

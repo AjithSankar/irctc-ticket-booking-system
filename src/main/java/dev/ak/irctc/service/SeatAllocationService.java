@@ -74,9 +74,9 @@ public class SeatAllocationService {
         if (!paymentSuccess) {
             log.info("Payment failed for booking {}", booking.getBookingId());
             releaseSeats(lockedSeats);
-            unassignPassengers(passengers);
             booking.setStatus(BookingStatus.FAILED);
             bookingRepository.save(booking);
+            unassignPassengers(passengers);
             return;
         }
 
