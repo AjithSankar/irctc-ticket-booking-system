@@ -72,7 +72,7 @@ public class SeatAllocationService {
         boolean paymentSuccess = paymentService.processPayment(booking.getBookingId(), amount, booking.getIdempotencyKey());
 
         if (!paymentSuccess) {
-            log.info("Payment failed for booking {}, IdempotencyKey= {}", booking.getBookingId(), bookingRequestDTO.idempotencyKey());
+            log.info("Payment failed for booking {}, IdempotencyKey={}", booking.getBookingId(), bookingRequestDTO.idempotencyKey());
             releaseSeats(lockedSeats, bookingRequestDTO.idempotencyKey());
             booking.setStatus(BookingStatus.FAILED);
             bookingRepository.save(booking);
@@ -113,22 +113,6 @@ public class SeatAllocationService {
         log.info("Booking has been finalized for booking {}, IdempotencyKey={}", booking.getBookingId(), booking.getIdempotencyKey());
     }
 
-    private void assignSeatsToPassengers(List<SeatInventory> allocatedSeats, Booking booking) {
-
-        List<Passenger> passengers = passengerRepository.findAllByBooking(booking);
-
-        for (int i = 0; i < passengers.size(); i++) {
-            Passenger passenger = passengers.get(i);
-            SeatInventory seat = allocatedSeats.get(i);
-            passenger.setSeatNumber(seat.getSeatNumber());
-            passenger.setCoach(seat.getCoach());
-            passenger.setBerthType("LOWER");
-        }
-        log.info("Assigned {} seats to the booking {}", allocatedSeats.size(), booking.getBookingId());
-        passengerRepository.saveAll(passengers);
-
-    }
-
     private void assignPassengers(List<Passenger> passengers, List<SeatInventory> seats, String bookingId, String idempotencyKey) {
 
         log.info("Assigning seats to passengers for booking {}, IdempotencyKey={}", bookingId, idempotencyKey);
@@ -147,15 +131,9 @@ public class SeatAllocationService {
         }
     }
 
-    private void confirmBooking(Booking booking) {
-        log.info("Confirming booking for bookingId={}, IdempotencyKey={}", booking.getBookingId(), booking.getIdempotencyKey());
-        booking.setStatus(BookingStatus.CONFIRMED);
-        bookingRepository.save(booking);
-    }
-
     private void failBooking(Booking booking, String reason) {
         log.info("Failing booking {} due to {}. IdempotencyKey={}", booking.getBookingId(), reason, booking.getIdempotencyKey());
-        booking.setStatus(BookingStatus.FAILED);
+        booking.setStatus(BookingStatus.NOT_BOOKED);
         bookingRepository.save(booking);
     }
 

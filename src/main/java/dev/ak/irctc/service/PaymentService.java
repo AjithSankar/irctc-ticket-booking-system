@@ -48,13 +48,13 @@ public class PaymentService {
         txn.setStatus(success ? TransactionStatus.SUCCESS : TransactionStatus.FAILED);
         transactionRepository.save(txn);
 
-        log.info("Payment {} for booking {}", txn.getStatus().name(), bookingId);
+        log.info("Payment {} for booking {}, IdempotencyKey={}", txn.getStatus().name(), bookingId, idempotencyKey);
 
         return success;
     }
 
     private boolean simulatePaymentGateway() {
-        // 80% success rate
-        return Math.random() < 0.99;
+        // 70% success rate
+        return Math.random() < 0.70;
     }
 }
