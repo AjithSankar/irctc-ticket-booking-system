@@ -8,6 +8,7 @@ import java.util.UUID;
 public record BookingRequestDTO(
         UUID bookingId,
         Integer trainNumber,
+        String idempotencyKey,
         String journeyDate,
         String sourceStation,
         String destinationStation,

@@ -16,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -38,6 +37,7 @@ public class SeatAllocationService {
 
     @Transactional
     public void allocateSeats(BookingRequestDTO bookingRequestDTO) {
+        log.info("Allocating seats for request: {} , IdempotencyKey={}", bookingRequestDTO.bookingId(), bookingRequestDTO.idempotencyKey());
         Booking booking = bookingRepository.findByBookingId(bookingRequestDTO.bookingId()).orElseThrow(() -> new RuntimeException("booking id:" + bookingRequestDTO.bookingId()+ " not found"));
         booking.setStatus(BookingStatus.PROCESSING);
 
@@ -55,15 +55,15 @@ public class SeatAllocationService {
 
         // Step 2: Decide outcome
         if (confirmedSeats == 0) {
-            failBooking(booking, "No seats available, all passengers in waiting list");
+            failBooking(booking, "No seats available, all passengers in waiting list. IdempotencyKey=" + bookingRequestDTO.idempotencyKey());
             return;
         }
 
         // Step 3: Mark Seats Blocked
-        markSeatsBooked(lockedSeats);
+        markSeatsBooked(lockedSeats, bookingRequestDTO.idempotencyKey());
 
         // 🔹 STEP 4: Assign passengers
-        assignPassengers(passengers, lockedSeats, bookingRequestDTO.bookingId().toString());
+        assignPassengers(passengers, lockedSeats, bookingRequestDTO.bookingId().toString(), bookingRequestDTO.idempotencyKey());
 
         passengerRepository.saveAll(passengers);
 
@@ -72,11 +72,11 @@ public class SeatAllocationService {
         boolean paymentSuccess = paymentService.processPayment(booking.getBookingId(), amount, booking.getIdempotencyKey());
 
         if (!paymentSuccess) {
-            log.info("Payment failed for booking {}", booking.getBookingId());
-            releaseSeats(lockedSeats);
+            log.info("Payment failed for booking {}, IdempotencyKey= {}", booking.getBookingId(), bookingRequestDTO.idempotencyKey());
+            releaseSeats(lockedSeats, bookingRequestDTO.idempotencyKey());
             booking.setStatus(BookingStatus.FAILED);
             bookingRepository.save(booking);
-            unassignPassengers(passengers);
+            unassignPassengers(passengers, "Payment failed so Unassigned passengers. IdempotencyKey=" + bookingRequestDTO.idempotencyKey());
             return;
         }
 
@@ -84,7 +84,7 @@ public class SeatAllocationService {
         finalizeBooking(booking, passengers, lockedSeats);
     }
 
-    private void unassignPassengers(List<Passenger> passengers) {
+    private void unassignPassengers(List<Passenger> passengers, String reason) {
         for (Passenger passenger : passengers) {
             passenger.setSeatNumber(null);
             passenger.setCoach(null);
@@ -92,7 +92,7 @@ public class SeatAllocationService {
             passenger.setBerthType(null);
         }
         passengerRepository.saveAll(passengers);
-        log.info("Unassigned passengers");
+        log.info(reason);
     }
 
     private double calculateAmount(int confirmedCount) {
@@ -110,7 +110,7 @@ public class SeatAllocationService {
         booking.setStatus(allConfirmed ? BookingStatus.CONFIRMED : BookingStatus.PARTIALLY_CONFIRMED);
 
         bookingRepository.save(booking);
-        log.info("Booking has been finalized for booking {}", booking.getBookingId());
+        log.info("Booking has been finalized for booking {}, IdempotencyKey={}", booking.getBookingId(), booking.getIdempotencyKey());
     }
 
     private void assignSeatsToPassengers(List<SeatInventory> allocatedSeats, Booking booking) {
@@ -129,9 +129,9 @@ public class SeatAllocationService {
 
     }
 
-    private void assignPassengers(List<Passenger> passengers, List<SeatInventory> seats, String bookingId) {
+    private void assignPassengers(List<Passenger> passengers, List<SeatInventory> seats, String bookingId, String idempotencyKey) {
 
-        log.info("Assigning seats to passengers for booking {}", bookingId);
+        log.info("Assigning seats to passengers for booking {}, IdempotencyKey={}", bookingId, idempotencyKey);
         int confirmed = seats.size();
         for (int i = 0; i < passengers.size(); i++) {
             Passenger p = passengers.get(i);
@@ -139,7 +139,7 @@ public class SeatAllocationService {
                 SeatInventory s = seats.get(i);
                 p.setSeatNumber(s.getSeatNumber());
                 p.setCoach(s.getCoach());
-                p.setBerthType("LOWER"); // simplify
+                p.setBerthType("LOWER");
                 p.setStatus(PassengerStatus.CONFIRMED);
             } else {
                 p.setStatus(PassengerStatus.WAITING_LIST);
@@ -148,33 +148,33 @@ public class SeatAllocationService {
     }
 
     private void confirmBooking(Booking booking) {
-        log.info("Confirming booking for {}", booking.getBookingId());
+        log.info("Confirming booking for bookingId={}, IdempotencyKey={}", booking.getBookingId(), booking.getIdempotencyKey());
         booking.setStatus(BookingStatus.CONFIRMED);
         bookingRepository.save(booking);
     }
 
     private void failBooking(Booking booking, String reason) {
-        log.info("Failing booking {} due to {}", booking.getBookingId(), reason);
+        log.info("Failing booking {} due to {}. IdempotencyKey={}", booking.getBookingId(), reason, booking.getIdempotencyKey());
         booking.setStatus(BookingStatus.FAILED);
         bookingRepository.save(booking);
     }
 
-    private void releaseSeats(List<SeatInventory> seats) {
+    private void releaseSeats(List<SeatInventory> seats, String idempotencyKey) {
         seats.forEach(seat -> {
             seat.setStatus(SeatStatus.AVAILABLE);
             seat.setBlockedAt(null);
         });
         seatInventoryRepository.saveAll(seats);
 
-        log.info("Released {} seats", seats.size());
+        log.info("Released {} seats. IdempotencyKey={}", seats.size(), idempotencyKey);
     }
 
-    private void markSeatsBooked(List<SeatInventory> seats) {
+    private void markSeatsBooked(List<SeatInventory> seats, String idempotencyKey) {
         seats.forEach(seat -> {
             seat.setStatus(SeatStatus.BOOKED);
             seat.setBlockedAt(LocalDateTime.now());
         });
         seatInventoryRepository.saveAll(seats);
-        log.info("Marked {} seats to booked", seats.size());
+        log.info("Marked {} seats to booked. IdempotencyKey={}", seats.size(), idempotencyKey);
     }
 }

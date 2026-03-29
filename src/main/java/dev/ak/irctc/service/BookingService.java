@@ -88,6 +88,7 @@ public class BookingService {
                         bookingQueue.publish(new BookingRequestDTO(
                                 booking.getBookingId(),
                                 booking.getTrain().getTrainNo(),
+                                booking.getIdempotencyKey(),
                                 booking.getJourneyDate().toString(),
                                 bookingRequest.sourceStation(),
                                 bookingRequest.destinationStation(),

@@ -20,3 +20,11 @@ spring:
       hibernate:
         format_sql: true
         generate_statistics: false # Set to true later to profile your queries
+
+management:
+  endpoints:
+    metics:
+      enabled: true
+    web:
+      exposure:
+        include: health,info,metrics

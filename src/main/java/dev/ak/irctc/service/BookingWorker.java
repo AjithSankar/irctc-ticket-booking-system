@@ -78,9 +78,9 @@ public class BookingWorker {
 
     private void processBooking(BookingRequestDTO bookingRequestDTO) {
         try {
-            log.info("Processing booking request: {}", bookingRequestDTO.bookingId());
+            log.info("Processing booking request: {}, IdempotencyKey={}", bookingRequestDTO.bookingId(),  bookingRequestDTO.idempotencyKey());
             seatAllocationService.allocateSeats(bookingRequestDTO);
-            log.info("Completed booking request: {}", bookingRequestDTO.bookingId());
+            log.info("Completed booking request: {}, IdempotencyKey={}", bookingRequestDTO.bookingId(), bookingRequestDTO.idempotencyKey());
         } catch (Exception e) {
             log.error("Failed processing booking request: {}", bookingRequestDTO.bookingId(), e);
         }

@@ -17,7 +17,7 @@ public class BookingQueue {
     public void publish(BookingRequestDTO request) {
         try {
             queue.put(request);
-            log.info("Request {} added to queue. Queue size: {}", request.bookingId(), queue.size());
+            log.debug("Request {} added to queue. Queue size: {}", request.bookingId(), queue.size());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             log.error("Failed to enqueue booking request: {}", request, e);
