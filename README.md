@@ -32,8 +32,6 @@ We will build this system incrementally using **microservices architecture**.
 
 # 🧱 Phase-Based Development Plan
 
-We will NOT build everything at once.
-
 ---
 
 ## ✅ Phase 1: Monolith (Foundation)
@@ -263,7 +261,7 @@ POST /book
 
 ## Backend
 
-* Java 17+
+* Java 25
 * Spring Boot
 
 ## Database
@@ -291,8 +289,6 @@ POST /book
 ---
 
 # 🐳 Docker Strategy
-
-We will NOT install anything locally.
 
 ## Services via Docker:
 
@@ -400,38 +396,4 @@ services:
 
 ---
 
-# 🧠 Key Engineering Concepts You Will Master
 
-* Distributed locking
-* Idempotency
-* Event-driven architecture
-* High concurrency handling
-* Backpressure
-* Database constraints vs application logic
-* System bottlenecks
-
----
-
-# ⚔️ Rules for This Project
-
-1. Do NOT jump steps
-2. Each phase must be runnable
-3. Write clean, production-like code
-4. Think failure scenarios always
-5. Optimize only after correctness
-
----
-
-# 🚀 Next Step
-
-👉 Start **Phase 1: Monolith**
-
-Once done, we will:
-
-* Review design
-* Identify bottlenecks
-* Move to next phase
-
----
-
-🔥 This project, if done properly, is enough to crack **any Tech Lead interview**.
