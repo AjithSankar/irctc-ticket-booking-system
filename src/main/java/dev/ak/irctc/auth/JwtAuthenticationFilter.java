@@ -34,13 +34,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String username = null;
         String jwt = null;
 
-        // JWT is typically passed as "Bearer <token>"
+        // JWT is typically passed as "Bearer <accessToken>"
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             jwt = authorizationHeader.substring(7);
             try {
                 username = jwtUtils.extractUsername(jwt);
             } catch (Exception e) {
-                // Log token extraction failure
+                // Log accessToken extraction failure
             }
         }
 

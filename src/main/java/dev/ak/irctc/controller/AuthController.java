@@ -1,11 +1,12 @@
 package dev.ak.irctc.controller;
 
-import dev.ak.irctc.dto.AuthResponse;
-import dev.ak.irctc.dto.LoginRequest;
-import dev.ak.irctc.dto.RegisterRequest;
+import dev.ak.irctc.dto.*;
+import dev.ak.irctc.entity.RefreshToken;
+import dev.ak.irctc.entity.User;
+import dev.ak.irctc.repository.UserRepository;
+import dev.ak.irctc.service.RefreshTokenService;
 import dev.ak.irctc.service.UserService;
 import dev.ak.irctc.util.JwtUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -21,18 +22,19 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
-
     private final UserDetailsService userDetailsService;
-
     private final JwtUtils jwtUtils;
-
     private final UserService userService;
+    private final UserRepository userRepository;
+    private final RefreshTokenService refreshTokenService;
 
-    public AuthController(AuthenticationManager authenticationManager, UserDetailsService userDetailsService,JwtUtils jwtUtils, UserService userService) {
+    public AuthController(AuthenticationManager authenticationManager, UserDetailsService userDetailsService, JwtUtils jwtUtils, UserService userService, UserRepository userRepository, RefreshTokenService refreshTokenService) {
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
         this.jwtUtils = jwtUtils;
         this.userService = userService;
+        this.userRepository = userRepository;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @PostMapping("/login")
@@ -41,14 +43,17 @@ public class AuthController {
             // This triggers Spring Security to authenticate against your database
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginRequest.email(), loginRequest.password()));
         } catch (BadCredentialsException e) {
-            throw new Exception("Incorrect username or password", e);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Incorrect email or password");
         }
 
-        // If authentication passes, load the user and generate a token
+        // If authentication passes, load the user and generate a accessToken
         final UserDetails userDetails = userDetailsService.loadUserByUsername(loginRequest.email());
         final String jwt = jwtUtils.generateToken(userDetails);
 
-        return ResponseEntity.ok(new AuthResponse(jwt, userDetails.getUsername()));
+        User user = userRepository.findByEmail(loginRequest.email()).orElseThrow(() -> new Exception("User not found"));
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
+
+        return ResponseEntity.ok(new AuthResponse(jwt, refreshToken.getToken(), userDetails.getUsername()));
     }
 
     @PostMapping("/register")
@@ -61,5 +66,19 @@ public class AuthController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Registration failed. Please try again.");
         }
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refreshToken(@RequestBody TokenRefreshRequest request) {
+        String requestRefreshToken = request.refreshToken();
+
+        return refreshTokenService.findByToken(requestRefreshToken)
+                .map(refreshTokenService::verifyExpiration)
+                .map(RefreshToken::getUser)
+                .map(user -> {
+                    String token = jwtUtils.generateToken(userDetailsService.loadUserByUsername(user.getEmail()));
+                    return ResponseEntity.ok(new TokenRefreshResponse(token, requestRefreshToken));
+                })
+                .orElseThrow(() -> new RuntimeException("Refresh accessToken is not in database!"));
     }
 }
