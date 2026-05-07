@@ -8,7 +8,9 @@ import dev.ak.irctc.service.RefreshTokenService;
 import dev.ak.irctc.service.UserService;
 import dev.ak.irctc.util.JwtUtils;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -19,7 +21,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "http://localhost:5173") // Allow requests from Vite
 @Slf4j
 public class AuthController {
 
@@ -61,9 +62,19 @@ public class AuthController {
         User user = userRepository.findByEmail(loginRequest.email()).orElseThrow(() -> new Exception("User not found"));
         log.debug("Creating refresh token for user: {}", loginRequest.email());
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
+
+        ResponseCookie refreshCookie = ResponseCookie.from("irctc_refresh_token", refreshToken.getToken())
+                .httpOnly(true)
+                .secure(false) // Set to false only if testing on localhost without HTTPS
+                .path("/api/auth/refresh") // Only send this cookie to the refresh endpoint
+                .maxAge(7 * 24 * 60 * 60) // 7 days
+                .sameSite("Strict")
+                .build();
         
         log.info("Login successful for user: {}", loginRequest.email());
-        return ResponseEntity.ok(new AuthResponse(jwt, refreshToken.getToken(), userDetails.getUsername()));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
+                .body(new AuthResponse(jwt, refreshToken.getToken(), userDetails.getUsername()));
     }
 
     @PostMapping("/register")
@@ -84,10 +95,15 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<?> refreshToken(@RequestBody TokenRefreshRequest request) {
-        log.info("Token refresh request received");
-        String requestRefreshToken = request.refreshToken();
+    public ResponseEntity<?> refreshToken(
+            // Read the token directly from the HttpOnly cookie
+             @CookieValue(name = "irctc_refresh_token", required = false) String requestRefreshToken) {
+
         log.debug("Validating refresh token");
+
+        if (requestRefreshToken == null || requestRefreshToken.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Refresh Token is missing or empty!");
+        }
 
         return refreshTokenService.findByToken(requestRefreshToken)
                 .map(token -> {
@@ -105,5 +121,20 @@ public class AuthController {
                     log.error("Token refresh failed - refresh token not found in database");
                     return new RuntimeException("Refresh accessToken is not in database!");
                 });
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logoutUser() {
+        // Overwrite the refresh token cookie with a blank one that expires immediately
+        ResponseCookie cookie = ResponseCookie.from("irctc_refresh_token", "")
+                .httpOnly(true)
+                .secure(true)
+                .path("/api/auth/refresh")
+                .maxAge(0) // Expires instantly
+                .build();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .body("Logged out successfully");
     }
 }

@@ -1,4 +1,4 @@
-package dev.ak.irctc.auth;
+package dev.ak.irctc.config;
 
 import dev.ak.irctc.util.JwtUtils;
 import jakarta.servlet.FilterChain;
