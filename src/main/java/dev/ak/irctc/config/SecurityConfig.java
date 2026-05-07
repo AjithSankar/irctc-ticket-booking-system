@@ -38,7 +38,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configure(http)) // Allow React frontend
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**").permitAll() // Open login/register endpoints
+                .requestMatchers("/api/auth/**", "/api/trains/**").permitAll() // Open login/register endpoints
                 .anyRequest().authenticated() // Protect everything else
             )
             .sessionManagement(session -> session
