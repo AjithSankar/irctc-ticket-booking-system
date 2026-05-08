@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface SeatInventoryRepository extends JpaRepository<SeatInventory, Long> {
@@ -28,19 +29,19 @@ public interface SeatInventoryRepository extends JpaRepository<SeatInventory, Lo
     );
 
     @Query(value = """
-    UPDATE seat_inventory
-    SET status = 'BLOCKED',
-        blocked_at = now()
-    WHERE id = (
-        SELECT id FROM seat_inventory
-        WHERE train_no = :trainNo
-          AND journey_date = :journeyDate
-          AND status = 'AVAILABLE'
-        LIMIT 1
-        FOR UPDATE SKIP LOCKED
-    )
-    RETURNING *
-""", nativeQuery = true)
+                UPDATE seat_inventory
+                SET status = 'BLOCKED',
+                    blocked_at = now()
+                WHERE id = (
+                    SELECT id FROM seat_inventory
+                    WHERE train_no = :trainNo
+                      AND journey_date = :journeyDate
+                      AND status = 'AVAILABLE'
+                    LIMIT 1
+                    FOR UPDATE SKIP LOCKED
+                )
+                RETURNING *
+            """, nativeQuery = true)
     SeatInventory findAndLockNextAvailableSeat(
             Integer trainNo,
             LocalDate journeyDate
@@ -58,4 +59,16 @@ public interface SeatInventoryRepository extends JpaRepository<SeatInventory, Lo
             @Param("journeyDate") LocalDate journeyDate,
             @Param("coachPrefix") String coachPrefix
     );
+
+    @Query(value = """
+            SELECT * FROM seat_inventory
+                        WHERE train_no = :trainNo
+                          AND journey_date = :journeyDate
+                          AND coach = :coach
+                          AND seat_number = :seatNumber
+            """, nativeQuery = true)
+    Optional<SeatInventory> findByTrainAndJourneyDateAndCoachAndSeatNumber(
+            Integer trainNo, LocalDate journeyDate, String coach, Integer seatNumber
+    );
+
 }

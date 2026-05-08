@@ -121,6 +121,7 @@ public class BookingService {
         List<Passenger> passengers = passengerRepository.findAllByBooking(booking);
         List<PassengerDTO> passengerDTOs = passengers.stream()
                 .map(p -> new PassengerDTO(
+                        p.getId(),
                         p.getName(),
                         p.getAge(),
                         p.getGender() != null ? p.getGender() : "",
@@ -149,11 +150,6 @@ public class BookingService {
         return bookings.stream()
                 .map(this::mapToBookingDetailsResponse)
                 .toList();
-    }
-
-    private BookingResponseDTO mapToBookingResponseDTO(Booking booking) {
-        return new BookingResponseDTO(booking.getBookingId(), booking.getStatus().name(),
-                booking.getTrain().getTrainName(), booking.getJourneyDate().toString());
     }
 
 }
