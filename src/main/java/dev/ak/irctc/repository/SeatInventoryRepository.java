@@ -45,4 +45,17 @@ public interface SeatInventoryRepository extends JpaRepository<SeatInventory, Lo
             Integer trainNo,
             LocalDate journeyDate
     );
+
+    @Query(value = """
+            SELECT COUNT(*) FROM seat_inventory
+            WHERE train_no = :trainNo
+              AND journey_date = :journeyDate
+              AND status = 'AVAILABLE'
+              AND coach LIKE :coachPrefix || '%'
+            """, nativeQuery = true)
+    long countAvailableSeats(
+            @Param("trainNo") Integer trainNo,
+            @Param("journeyDate") LocalDate journeyDate,
+            @Param("coachPrefix") String coachPrefix
+    );
 }
