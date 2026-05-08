@@ -1,5 +1,6 @@
 package dev.ak.irctc.service;
 
+import dev.ak.irctc.entity.User;
 import dev.ak.irctc.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;

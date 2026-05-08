@@ -11,12 +11,14 @@ import dev.ak.irctc.repository.BookingRepository;
 import dev.ak.irctc.repository.PassengerRepository;
 import dev.ak.irctc.repository.SeatInventoryRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -27,61 +29,56 @@ public class SeatAllocationService {
     private final PassengerRepository passengerRepository;
     private final PaymentService paymentService;
 
-    public SeatAllocationService(SeatInventoryRepository seatInventoryRepository, BookingRepository bookingRepository, PassengerRepository passengerRepository, PaymentService paymentService) {
+    // 🔹 FIX: Self-injection to properly handle Spring's internal @Transactional proxies
+    private final SeatAllocationService self;
+
+    public SeatAllocationService(SeatInventoryRepository seatInventoryRepository, BookingRepository bookingRepository,
+                                 PassengerRepository passengerRepository, PaymentService paymentService,
+                                 @Lazy SeatAllocationService self) {
         this.seatInventoryRepository = seatInventoryRepository;
         this.bookingRepository = bookingRepository;
         this.passengerRepository = passengerRepository;
         this.paymentService = paymentService;
+        this.self = self;
     }
 
 
-    @Transactional
     public void allocateSeats(BookingRequestDTO bookingRequestDTO) {
-        log.info("Allocating seats for request: {} , IdempotencyKey={}", bookingRequestDTO.bookingId(), bookingRequestDTO.idempotencyKey());
-        Booking booking = bookingRepository.findByBookingId(bookingRequestDTO.bookingId()).orElseThrow(() -> new RuntimeException("booking id:" + bookingRequestDTO.bookingId()+ " not found"));
-        booking.setStatus(BookingStatus.PROCESSING);
 
-        List<Passenger> passengers = passengerRepository.findAllByBooking(booking);
-        int requestedSeats = passengers.size();
+        try {
 
-        // 🔹 STEP 1: LOCK SEATS (single DB call)
-        List<SeatInventory> lockedSeats = seatInventoryRepository.findAvailableSeatsAndLock(
-                bookingRequestDTO.trainNumber(),
-                LocalDate.parse(bookingRequestDTO.journeyDate()),
-                requestedSeats
-        );
+            log.info("Allocating seats for request: {} , IdempotencyKey={}", bookingRequestDTO.bookingId(), bookingRequestDTO.idempotencyKey());
+            // STEP 1: Lock seats and assign passengers (Opens and closes DB transaction)
+            List<SeatInventory> lockedSeats = self.blockSeatsTransactionally(bookingRequestDTO);
 
-        int confirmedSeats = lockedSeats.size();
+            if (lockedSeats == null || lockedSeats.isEmpty()) {
+                self.failBookingTransactionally(bookingRequestDTO.bookingId(), BookingStatus.NOT_BOOKED, "No seats available, all passengers in waiting list. IdempotencyKey=" + bookingRequestDTO.idempotencyKey());
+                return;
+            }
 
-        // Step 2: Decide outcome
-        if (confirmedSeats == 0) {
-            failBooking(booking, "No seats available, all passengers in waiting list. IdempotencyKey=" + bookingRequestDTO.idempotencyKey());
-            return;
+            // STEP 2: Payment Gateway Call (NO DATABASE LOCKS HELD DURING THIS NETWORK CALL!)
+            double amount = calculateAmount(lockedSeats.size(), bookingRequestDTO.classType());
+            boolean paymentSuccess = paymentService.processPayment(
+                    bookingRequestDTO.bookingId(),
+                    amount,
+                    bookingRequestDTO.idempotencyKey()
+            );
+
+            // STEP 3: Finalize or Revert (Opens and closes a new DB transaction)
+            if (paymentSuccess) {
+                self.finalizeBookingTransactionally(bookingRequestDTO.bookingId(), lockedSeats);
+            } else {
+                log.info("Payment failed for booking {}, IdempotencyKey={}", bookingRequestDTO.bookingId(), bookingRequestDTO.idempotencyKey());
+                self.releaseSeatsTransactionally(bookingRequestDTO.bookingId(), lockedSeats, bookingRequestDTO.idempotencyKey());
+            }
+        } catch (Exception e) {
+            log.error("CRITICAL: Unhandled exception during seat allocation for booking {}: {}", bookingRequestDTO.bookingId(), e.getMessage(), e);
+            try {
+                self.failBookingTransactionally(bookingRequestDTO.bookingId(), BookingStatus.FAILED, "System error during processing: IdempotencyKey=" + bookingRequestDTO.idempotencyKey());
+            } catch (Exception ex) {
+                log.error("CRITICAL: Failed to update booking status to FAILED for booking {}: {}", bookingRequestDTO.bookingId(), ex.getMessage(), ex);
+            }
         }
-
-        // Step 3: Mark Seats Blocked
-        markSeatsBooked(lockedSeats, bookingRequestDTO.idempotencyKey());
-
-        // 🔹 STEP 4: Assign passengers
-        assignPassengers(passengers, lockedSeats, bookingRequestDTO.bookingId().toString(), bookingRequestDTO.idempotencyKey());
-
-        passengerRepository.saveAll(passengers);
-
-        // STEP 5: Payment (only for confirmed seats)
-        double amount = calculateAmount(confirmedSeats);
-        boolean paymentSuccess = paymentService.processPayment(booking.getBookingId(), amount, booking.getIdempotencyKey());
-
-        if (!paymentSuccess) {
-            log.info("Payment failed for booking {}, IdempotencyKey={}", booking.getBookingId(), bookingRequestDTO.idempotencyKey());
-            releaseSeats(lockedSeats, bookingRequestDTO.idempotencyKey());
-            booking.setStatus(BookingStatus.FAILED);
-            bookingRepository.save(booking);
-            unassignPassengers(passengers, "Payment failed so Unassigned passengers. IdempotencyKey=" + bookingRequestDTO.idempotencyKey());
-            return;
-        }
-
-        // 🔹 STEP 6: Finalize booking
-        finalizeBooking(booking, passengers, lockedSeats);
     }
 
     private void unassignPassengers(List<Passenger> passengers, String reason) {
@@ -155,4 +152,110 @@ public class SeatAllocationService {
         seatInventoryRepository.saveAll(seats);
         log.info("Marked {} seats to booked. IdempotencyKey={}", seats.size(), idempotencyKey);
     }
+
+    // --- TRANSACTIONAL BOUNDARY METHODS ---
+
+    @Transactional
+    public List<SeatInventory> blockSeatsTransactionally(BookingRequestDTO dto) {
+
+        Booking booking = bookingRepository.findByBookingId(dto.bookingId())
+                .orElseThrow(() -> new RuntimeException("booking id:" + dto.bookingId() + " not found"));
+        booking.setStatus(BookingStatus.PROCESSING);
+
+        List<Passenger> passengers = passengerRepository.findAllByBooking(booking);
+        int requestedSeats = passengers.size();
+
+        // 1. Lock Seats via FOR UPDATE SKIP LOCKED
+        List<SeatInventory> lockedSeats = seatInventoryRepository.findAvailableSeatsAndLock(
+                dto.trainNumber(),
+                LocalDate.parse(dto.journeyDate()),
+                requestedSeats
+        );
+
+        if (!lockedSeats.isEmpty()) {
+            // 2. Temporarily set to BLOCKED
+            lockedSeats.forEach(seat -> {
+                seat.setStatus(SeatStatus.BLOCKED);
+                seat.setBlockedAt(LocalDateTime.now());
+            });
+            seatInventoryRepository.saveAll(lockedSeats);
+
+            // 3. Assign to Passengers
+            assignPassengers(passengers, lockedSeats, dto.bookingId().toString(), dto.idempotencyKey());
+            passengerRepository.saveAll(passengers);
+        } else {
+
+        }
+
+        bookingRepository.save(booking);
+        return lockedSeats;
+    }
+
+    @Transactional
+    public void finalizeBookingTransactionally(UUID bookingId, List<SeatInventory> seats) {
+        Booking booking = bookingRepository.findByBookingId(bookingId)
+                .orElseThrow(() -> new RuntimeException("booking id:" + bookingId + " not found"));
+
+        // Change BLOCKED to BOOKED
+        seats.forEach(seat -> seat.setStatus(SeatStatus.BOOKED));
+        seatInventoryRepository.saveAll(seats);
+
+        List<Passenger> passengers = passengerRepository.findAllByBooking(booking);
+        boolean allConfirmed = passengers.stream()
+                .allMatch(p -> p.getStatus() == PassengerStatus.CONFIRMED);
+
+        booking.setStatus(allConfirmed ? BookingStatus.CONFIRMED : BookingStatus.PARTIALLY_CONFIRMED);
+        bookingRepository.save(booking);
+
+        log.info("Booking has been finalized for booking {}, IdempotencyKey={}", bookingId, booking.getIdempotencyKey());
+    }
+
+    @Transactional
+    public void releaseSeatsTransactionally(UUID bookingId, List<SeatInventory> seats, String idempotencyKey) {
+        Booking booking = bookingRepository.findByBookingId(bookingId)
+                .orElseThrow(() -> new RuntimeException("booking id:" + bookingId + " not found"));
+
+        // Release seats back to pool
+        seats.forEach(seat -> {
+            seat.setStatus(SeatStatus.AVAILABLE);
+            seat.setBlockedAt(null);
+        });
+        seatInventoryRepository.saveAll(seats);
+
+        // Fail the booking and unassign passengers
+        booking.setStatus(BookingStatus.FAILED);
+        bookingRepository.save(booking);
+
+        List<Passenger> passengers = passengerRepository.findAllByBooking(booking);
+        for (Passenger passenger : passengers) {
+            passenger.setSeatNumber(null);
+            passenger.setCoach(null);
+            passenger.setStatus(null);
+            passenger.setBerthType(null);
+        }
+        passengerRepository.saveAll(passengers);
+
+        log.info("Released {} seats. Payment failed so unassigned passengers. IdempotencyKey={}", seats.size(), idempotencyKey);
+    }
+
+    @Transactional
+    public void failBookingTransactionally(UUID bookingId, BookingStatus status, String reason) {
+        Booking booking = bookingRepository.findByBookingId(bookingId)
+                .orElseThrow(() -> new RuntimeException("booking id:" + bookingId + " not found"));
+        log.info("Failing booking {} due to {}", bookingId, reason);
+        booking.setStatus(status);
+        bookingRepository.save(booking);
+    }
+
+    // --- HELPER METHODS ---
+
+    // 🔹 FIX: Dynamic Pricing based on requested Class Type
+    private double calculateAmount(int confirmedCount, String classType) {
+        double baseFare = 350.00; // Default Sleeper
+        if ("3A".equalsIgnoreCase(classType)) baseFare = 950.00;
+        if ("2A".equalsIgnoreCase(classType)) baseFare = 1350.00;
+
+        return confirmedCount * baseFare;
+    }
+
 }

@@ -30,6 +30,9 @@ public class Passenger {
     @Column(name = "name")
     private String name;
 
+    @Column(name = "gender")
+    private String gender;
+
     @Column(name = "coach")
     private String coach;
 

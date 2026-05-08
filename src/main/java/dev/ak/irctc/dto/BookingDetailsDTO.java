@@ -1,12 +1,15 @@
 package dev.ak.irctc.dto;
 
-import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
-public record BookingResponseDTO(
+public record BookingDetailsDTO(
         UUID bookingId,
         String status,
         String trainNumber,
-        String journeyDate
+        String journeyDate,
+        List<PassengerDTO> passengers
 ) {
 }
+
+

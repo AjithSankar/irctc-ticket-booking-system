@@ -1,8 +1,6 @@
 package dev.ak.irctc.service;
 
-import dev.ak.irctc.dto.BookingRequest;
-import dev.ak.irctc.dto.BookingRequestDTO;
-import dev.ak.irctc.dto.BookingResponseDTO;
+import dev.ak.irctc.dto.*;
 import dev.ak.irctc.entity.Booking;
 import dev.ak.irctc.entity.Passenger;
 import dev.ak.irctc.entity.Train;
@@ -15,10 +13,12 @@ import dev.ak.irctc.repository.TrainRepository;
 import dev.ak.irctc.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -104,7 +104,56 @@ public class BookingService {
     }
 
     private static @NonNull BookingResponseDTO mapToBookingResponse(Booking existingBooking) {
-        return new BookingResponseDTO(existingBooking.getBookingId(), existingBooking.getStatus().name());
+        return new BookingResponseDTO(existingBooking.getBookingId(), existingBooking.getStatus().name(), String.valueOf(existingBooking.getTrain().getTrainNo()), existingBooking.getJourneyDate().toString());
+    }
+
+    public BookingDetailsDTO findBookingById(UUID bookingId) {
+        Booking booking = bookingRepository.findByBookingId(bookingId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Booking not found with ID: " + bookingId
+                ));
+
+        return mapToBookingDetailsResponse(booking);
+    }
+
+    private BookingDetailsDTO mapToBookingDetailsResponse(Booking booking) {
+        List<Passenger> passengers = passengerRepository.findAllByBooking(booking);
+        List<PassengerDTO> passengerDTOs = passengers.stream()
+                .map(p -> new PassengerDTO(
+                        p.getName(),
+                        p.getAge(),
+                        p.getGender() != null ? p.getGender() : "",
+                        p.getStatus() != null ? p.getStatus().name() : "PENDING",
+                        p.getCoach(),
+                        p.getSeatNumber()
+                ))
+                .toList();
+
+        return new BookingDetailsDTO(
+                booking.getBookingId(),
+                booking.getStatus().name(),
+                String.valueOf(booking.getTrain().getTrainNo()),
+                booking.getJourneyDate().toString(),
+                passengerDTOs
+        );
+    }
+
+    public List<BookingDetailsDTO> getUserBookings(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + userId));
+
+        List<Booking> bookings = bookingRepository.findAllByUserOrderByCreatedAtDesc(user);
+
+        // Map the list of entities to our DTOs (which already include passenger details!)
+        return bookings.stream()
+                .map(this::mapToBookingDetailsResponse)
+                .toList();
+    }
+
+    private BookingResponseDTO mapToBookingResponseDTO(Booking booking) {
+        return new BookingResponseDTO(booking.getBookingId(), booking.getStatus().name(),
+                booking.getTrain().getTrainName(), booking.getJourneyDate().toString());
     }
 
 }

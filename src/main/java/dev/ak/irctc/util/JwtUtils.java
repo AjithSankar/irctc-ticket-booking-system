@@ -1,5 +1,6 @@
 package dev.ak.irctc.util;
 
+import dev.ak.irctc.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -76,6 +77,10 @@ public class JwtUtils {
     public String generateToken(UserDetails userDetails) {
         log.info("Generating new JWT token for user: {}", userDetails.getUsername());
         Map<String, Object> extraClaims = new HashMap<>();
+        if (userDetails instanceof User) {
+            User user = (User) userDetails;
+            extraClaims.put("userId", user.getId());
+        }
         return createToken(extraClaims, userDetails.getUsername());
     }
 

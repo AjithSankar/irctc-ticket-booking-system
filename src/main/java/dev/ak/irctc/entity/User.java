@@ -49,6 +49,10 @@ public class User implements UserDetails {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
     }
 
+    public Long getId() {
+        return id;
+    }
+
     @Override
     public String getUsername() {
         // Spring Security uses 'username' as the primary identifier. We use email.
