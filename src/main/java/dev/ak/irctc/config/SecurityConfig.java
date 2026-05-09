@@ -35,15 +35,16 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable) // Disable CSRF for stateless APIs
-            .cors(cors -> cors.configure(http)) // Allow React frontend
+                .cors(cors -> cors.configure(http)) // Allow React frontend
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**", "/api/trains/**", "/api/seats/**").permitAll() // Open login/register endpoints
-                .anyRequest().authenticated() // Protect everything else
-            )
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // No server-side sessions
-            );
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/auth/**", "/api/trains/**").permitAll() // Open login/register endpoints
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .anyRequest().authenticated() // Protect everything else
+                )
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // No server-side sessions
+                );
 
         // Add the JWT filter before standard Spring Security filters
         http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);

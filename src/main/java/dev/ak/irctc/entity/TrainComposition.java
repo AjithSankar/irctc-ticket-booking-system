@@ -1,5 +1,6 @@
 package dev.ak.irctc.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,6 +22,7 @@ public class TrainComposition {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "train_no", referencedColumnName = "train_no", nullable = false)
+    @JsonIgnore
     private Train train;
 
     @Column(name = "class_type", nullable = false)

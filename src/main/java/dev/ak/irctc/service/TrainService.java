@@ -1,5 +1,6 @@
 package dev.ak.irctc.service;
 
+import dev.ak.irctc.dto.TrainResponseDTO;
 import dev.ak.irctc.dto.TrainSearchResponse;
 import dev.ak.irctc.entity.Train;
 import dev.ak.irctc.entity.TrainSchedule;
@@ -81,5 +82,25 @@ public class TrainService {
         }
 
         return new TrainSearchResponse.TrainClassDTO(classType, price, availabilityStr);
+    }
+
+    public List<TrainResponseDTO> getAllTrains() {
+        List<Train> trains = trainRepository.findAll();
+
+        return trains.stream()
+                .map(train -> toTrainResponseDTO(train))
+                .toList();
+    }
+
+    private TrainResponseDTO toTrainResponseDTO(Train train) {
+        return new TrainResponseDTO(
+                train.getId(),
+                train.getTrainNo(),
+                train.getTrainName(),
+                train.getSourceStation(),
+                train.getDestinationStation(),
+                train.getRunsOn(),
+                train.isActive()
+        );
     }
 }

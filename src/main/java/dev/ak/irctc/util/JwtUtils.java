@@ -80,6 +80,7 @@ public class JwtUtils {
         if (userDetails instanceof User) {
             User user = (User) userDetails;
             extraClaims.put("userId", user.getId());
+            extraClaims.put("role", user.getRole().name());
         }
         return createToken(extraClaims, userDetails.getUsername());
     }
