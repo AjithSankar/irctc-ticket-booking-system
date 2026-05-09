@@ -64,6 +64,7 @@ public class BookingService {
                 .train(train)
                 .journeyDate(LocalDate.parse(bookingRequest.journeyDate()))
                 .status(BookingStatus.INITIATED)
+                .classType(bookingRequest.classType())
                 .createdAt(LocalDateTime.now())
                 .build();
 
@@ -104,7 +105,7 @@ public class BookingService {
     }
 
     private static @NonNull BookingResponseDTO mapToBookingResponse(Booking existingBooking) {
-        return new BookingResponseDTO(existingBooking.getBookingId(), existingBooking.getStatus().name(), String.valueOf(existingBooking.getTrain().getTrainNo()), existingBooking.getJourneyDate().toString());
+        return new BookingResponseDTO(existingBooking.getBookingId(), existingBooking.getStatus().name(), String.valueOf(existingBooking.getTrain().getTrainNo()), existingBooking.getJourneyDate().toString(), existingBooking.getClassType());
     }
 
     public BookingDetailsDTO findBookingById(UUID bookingId) {
@@ -136,6 +137,7 @@ public class BookingService {
                 booking.getStatus().name(),
                 String.valueOf(booking.getTrain().getTrainNo()),
                 booking.getJourneyDate().toString(),
+                booking.getClassType(),
                 passengerDTOs
         );
     }

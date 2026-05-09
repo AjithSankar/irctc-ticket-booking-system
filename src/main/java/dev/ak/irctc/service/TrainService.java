@@ -4,6 +4,7 @@ import dev.ak.irctc.dto.TrainResponseDTO;
 import dev.ak.irctc.dto.TrainSearchResponse;
 import dev.ak.irctc.entity.Train;
 import dev.ak.irctc.entity.TrainSchedule;
+import dev.ak.irctc.repository.PassengerRepository;
 import dev.ak.irctc.repository.SeatInventoryRepository;
 import dev.ak.irctc.repository.TrainRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -21,10 +22,12 @@ public class TrainService {
 
     private final TrainRepository trainRepository;
     private final SeatInventoryRepository seatInventoryRepository;
+    private final PassengerRepository passengerRepository;
 
-    public TrainService(TrainRepository trainRepository, SeatInventoryRepository seatInventoryRepository) {
+    public TrainService(TrainRepository trainRepository, SeatInventoryRepository seatInventoryRepository, PassengerRepository passengerRepository) {
         this.trainRepository = trainRepository;
         this.seatInventoryRepository = seatInventoryRepository;
+        this.passengerRepository = passengerRepository;
     }
 
     public List<TrainSearchResponse> findTrains(String from, String to, String date) {
@@ -76,9 +79,11 @@ public class TrainService {
             // Format as "AVAILABLE-0024"
             availabilityStr = "AVAILABLE-" + String.format("%04d", availableSeats);
         } else {
-            // In a full production app, you would count the WAITING_LIST table here.
-            // For now, if 0 seats are available, we simulate a standard Waiting List.
-            availabilityStr = "WL-15";
+            // 🔹 The True Waiting List Logic
+            long wlCount = passengerRepository.countWaitingListPassengers(trainNo, date, classType);
+
+            // If 4 people are on the WL, the next person sees WL-5
+            availabilityStr = "WL-" + (wlCount + 1);
         }
 
         return new TrainSearchResponse.TrainClassDTO(classType, price, availabilityStr);

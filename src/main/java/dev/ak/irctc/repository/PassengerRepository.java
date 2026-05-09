@@ -22,14 +22,31 @@ public interface PassengerRepository extends JpaRepository<Passenger, UUID> {
         JOIN bookings b ON p.booking_id = b.booking_id
         JOIN trains t ON b.train_no = t.id
         WHERE t.train_no = :trainNo 
-          AND b.journey_date = :journeyDate 
+          AND b.journey_date = :journeyDate
+          AND b.class_type = :classType
           AND p.status = 'WAITING_LIST' 
         ORDER BY b.created_at ASC, p.id ASC 
         LIMIT 1
     """, nativeQuery = true)
     Optional<Passenger> findNextWaitingListPassenger(
             @Param("trainNo") Integer trainNo,
-            @Param("journeyDate") LocalDate journeyDate
+            @Param("journeyDate") LocalDate journeyDate,
+            @Param("classType") String classType
+    );
+
+    // 🔹 Counts the exact number of people currently on the waiting list
+    @Query(value = """
+        SELECT COUNT(p.id) FROM passengers p
+        JOIN bookings b ON p.booking_id = b.booking_id
+        WHERE b.train_no = :trainNo
+          AND b.journey_date = :journeyDate
+          AND b.class_type = :classType
+          AND p.status = 'WAITING_LIST'
+    """, nativeQuery = true)
+    long countWaitingListPassengers(
+            @Param("trainNo") Integer trainNo,
+            @Param("journeyDate") LocalDate journeyDate,
+            @Param("classType") String classType
     );
 
 }

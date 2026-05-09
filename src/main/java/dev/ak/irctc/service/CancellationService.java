@@ -85,7 +85,8 @@ public class CancellationService {
         // Find the next person in line for this train and date
         Optional<Passenger> wlPassengerOpt = passengerRepository.findNextWaitingListPassenger(
                 cancelledBooking.getTrain().getTrainNo(),
-                cancelledBooking.getJourneyDate()
+                cancelledBooking.getJourneyDate(),
+                cancelledBooking.getClassType()
         );
 
         if (wlPassengerOpt.isPresent()) {

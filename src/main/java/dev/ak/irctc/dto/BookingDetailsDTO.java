@@ -8,6 +8,7 @@ public record BookingDetailsDTO(
         String status,
         String trainNumber,
         String journeyDate,
+        String classType,
         List<PassengerDTO> passengers
 ) {
 }

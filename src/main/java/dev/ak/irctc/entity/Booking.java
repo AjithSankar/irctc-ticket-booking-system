@@ -41,6 +41,9 @@ public class Booking {
     @OneToMany(mappedBy = "booking", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Passenger> passengers;
 
+    @Column(name = "class_type", nullable = false)
+    private String classType;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

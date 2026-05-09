@@ -7,6 +7,7 @@ public record BookingResponseDTO(
         UUID bookingId,
         String status,
         String trainNumber,
-        String journeyDate
+        String journeyDate,
+        String classType
 ) {
 }
