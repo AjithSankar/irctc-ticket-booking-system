@@ -23,4 +23,7 @@ public interface TrainRepository extends JpaRepository<Train, Long> {
           AND r1.stopSequence < r2.stopSequence
     """)
     List<Train> findTrainsBetweenStations(@Param("source") String source, @Param("destination") String destination);
+
+    List<Train> findAllByIsActiveTrue();
+
 }

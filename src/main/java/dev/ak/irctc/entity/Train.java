@@ -45,4 +45,14 @@ public class Train {
     @OneToMany(mappedBy = "train", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @OrderBy("stopSequence ASC")
     private List<TrainSchedule> routeSchedules = new ArrayList<>();
+
+    // 🔹 NEW: Add an active flag so you can temporarily disable trains without deleting them
+    @Column(name = "is_active")
+    @Builder.Default
+    private boolean isActive = true;
+
+    // 🔹 NEW: The blueprint of how many coaches this train has
+    @OneToMany(mappedBy = "train", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<TrainComposition> composition = new ArrayList<>();
 }

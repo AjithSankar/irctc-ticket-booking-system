@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "seat_inventory",
         uniqueConstraints = @UniqueConstraint(
-        columnNames = {"train_no", "journey_date", "seat_number"}
+        columnNames = {"train_no", "journey_date", "coach", "seat_number"}
 ), indexes = {
         @Index(name = "idx_seat_inv_search", columnList = "train_no, journey_date, status")
 })

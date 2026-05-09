@@ -71,4 +71,7 @@ public interface SeatInventoryRepository extends JpaRepository<SeatInventory, Lo
             Integer trainNo, LocalDate journeyDate, String coach, Integer seatNumber
     );
 
+    @Query("SELECT COUNT(s) > 0 FROM SeatInventory s WHERE s.train.trainNo = :trainNo AND s.journeyDate = :journeyDate")
+    boolean existsByTrainNoAndJourneyDate(@Param("trainNo") Integer trainNo, @Param("journeyDate") LocalDate journeyDate);
+
 }
