@@ -18,14 +18,16 @@ public interface SeatInventoryRepository extends JpaRepository<SeatInventory, Lo
             WHERE train_no = :trainNo
               AND journey_date = :journeyDate
               AND status = 'AVAILABLE'
-            ORDER BY seat_number ASC
+              AND coach LIKE :coachPrefix
+            ORDER BY coach ASC, seat_number ASC
             LIMIT :numberOfSeats
             FOR UPDATE SKIP LOCKED
             """, nativeQuery = true)
     List<SeatInventory> findAvailableSeatsAndLock(
             @Param("trainNo") Integer trainNo,
             @Param("journeyDate") LocalDate localDate,
-            @Param("numberOfSeats") int numberOfSeats
+            @Param("numberOfSeats") int numberOfSeats,
+            @Param("coachPrefix") String coachPrefix
     );
 
     @Query(value = """

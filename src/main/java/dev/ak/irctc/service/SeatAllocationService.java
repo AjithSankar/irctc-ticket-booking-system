@@ -165,11 +165,21 @@ public class SeatAllocationService {
         List<Passenger> passengers = passengerRepository.findAllByBooking(booking);
         int requestedSeats = passengers.size();
 
+        String coachPrefix = switch (dto.classType()) {
+            case "1A" -> "H%"; // H1, H2
+            case "2A" -> "A%"; // A1, A2
+            case "3A" -> "B%"; // B1, B2
+            case "CC" -> "C%"; // C1, C2
+            case "SL" -> "S%"; // S1, S2
+            default -> "S%";   // Default to Sleeper
+        };
+
         // 1. Lock Seats via FOR UPDATE SKIP LOCKED
         List<SeatInventory> lockedSeats = seatInventoryRepository.findAvailableSeatsAndLock(
                 dto.trainNumber(),
                 LocalDate.parse(dto.journeyDate()),
-                requestedSeats
+                requestedSeats,
+                coachPrefix
         );
 
         if (!lockedSeats.isEmpty()) {
