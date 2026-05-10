@@ -93,7 +93,7 @@ public class TrainService {
         List<Train> trains = trainRepository.findAll();
 
         return trains.stream()
-                .map(train -> toTrainResponseDTO(train))
+                .map(this::toTrainResponseDTO)
                 .toList();
     }
 
