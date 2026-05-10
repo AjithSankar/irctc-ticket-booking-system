@@ -1,8 +1,10 @@
 package dev.ak.irctc.service;
 
+import dev.ak.irctc.dto.CheckoutSummaryDTO;
 import dev.ak.irctc.dto.TrainResponseDTO;
 import dev.ak.irctc.dto.TrainSearchResponse;
 import dev.ak.irctc.entity.Train;
+import dev.ak.irctc.entity.TrainComposition;
 import dev.ak.irctc.entity.TrainSchedule;
 import dev.ak.irctc.repository.PassengerRepository;
 import dev.ak.irctc.repository.SeatInventoryRepository;
@@ -106,6 +108,44 @@ public class TrainService {
                 train.getDestinationStation(),
                 train.getRunsOn(),
                 train.isActive()
+        );
+    }
+
+    public CheckoutSummaryDTO getCheckoutSummary(Integer trainNo, String classType) {
+        Train train = trainRepository.findByTrainNo(trainNo)
+                .orElseThrow(() -> new RuntimeException("Train not found"));
+
+        double fare = 0.0;
+        for (TrainComposition tc : train.getComposition()) {
+            if (tc.getClassType().equalsIgnoreCase(classType)) {
+                fare = tc.getBaseFare();
+                break;
+            }
+        }
+
+        TrainSchedule sourceRoute = train.getRouteSchedules().stream()
+                .filter(r -> r.getStationCode().equals(train.getSourceStation())).findFirst().get();
+        TrainSchedule destRoute = train.getRouteSchedules().stream()
+                .filter(r -> r.getStationCode().equals(train.getDestinationStation())).findFirst().get();
+
+        Duration duration = Duration.between(sourceRoute.getDepartureTime(), destRoute.getArrivalTime());
+        // Adjust for overnight trains (simplified)
+        if (duration.isNegative()) {
+            duration = duration.plusHours(24);
+        }
+
+        return new CheckoutSummaryDTO(
+                train.getTrainNo(),
+                train.getTrainName(),
+                train.getSourceStation(),
+                train.getDestinationStation(),
+                sourceRoute.getDepartureTime().toString(),
+                destRoute.getArrivalTime().toString(),
+                String.format("%02d:%02d", duration.toHours(), duration.toMinutesPart()),
+                classType,
+                fare,
+                sourceRoute.getStationName(),
+                destRoute.getStationName()
         );
     }
 }

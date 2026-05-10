@@ -1,5 +1,6 @@
 package dev.ak.irctc.controller;
 
+import dev.ak.irctc.dto.CheckoutSummaryDTO;
 import dev.ak.irctc.dto.ClassAvailabilityDTO;
 import dev.ak.irctc.dto.TrainSearchResponse;
 import dev.ak.irctc.entity.Train;
@@ -80,5 +81,12 @@ public class TrainController {
         }
 
         return ResponseEntity.ok(sixDayAvailability);
+    }
+
+    @GetMapping("/{trainNo}/checkout-info")
+    public ResponseEntity<CheckoutSummaryDTO> getCheckoutSummary(@PathVariable Integer trainNo, @RequestParam String classType) {
+
+        CheckoutSummaryDTO checkoutSummaryDTO = trainService.getCheckoutSummary(trainNo, classType);
+        return ResponseEntity.ok(checkoutSummaryDTO);
     }
 }

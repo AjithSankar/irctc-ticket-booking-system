@@ -36,4 +36,7 @@ public class TrainComposition {
 
     @Column(name = "seats_per_coach", nullable = false)
     private Integer seatsPerCoach; // e.g., 72 seats per sleeper
+
+    @Column(name = "base_fare")
+    private double baseFare;
 }
