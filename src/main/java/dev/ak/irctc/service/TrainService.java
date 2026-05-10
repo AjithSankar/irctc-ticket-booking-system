@@ -8,7 +8,6 @@ import dev.ak.irctc.repository.PassengerRepository;
 import dev.ak.irctc.repository.SeatInventoryRepository;
 import dev.ak.irctc.repository.TrainRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -39,8 +38,10 @@ public class TrainService {
         // 2. Map to DTOs
         List<TrainSearchResponse> response = trains.stream().map(train -> {
             TrainSearchResponse dto = new TrainSearchResponse();
-            dto.setId(String.valueOf(train.getTrainNo()));
-            dto.setName(train.getTrainName());
+            dto.setTrainNo(String.valueOf(train.getTrainNo()));
+            dto.setTrainName(train.getTrainName().toUpperCase());
+            dto.setSourceStation(train.getSourceStation());
+            dto.setDestinationStation(train.getDestinationStation());
 
             // Extract timings specific to the requested stations
             TrainSchedule sourceRoute = train.getRouteSchedules().stream()
@@ -73,7 +74,7 @@ public class TrainService {
 
     private TrainSearchResponse.TrainClassDTO buildClassDTO(String classType, double price, Integer trainNo, LocalDate date, String coachPrefix) {
         long availableSeats = seatInventoryRepository.countAvailableSeats(trainNo, date, coachPrefix);
-
+        log.info("TrainNumber: {} , Available Seats: {}", trainNo, availableSeats);
         String availabilityStr;
         if (availableSeats > 0) {
             // Format as "AVAILABLE-0024"
@@ -81,7 +82,6 @@ public class TrainService {
         } else {
             // 🔹 The True Waiting List Logic
             long wlCount = passengerRepository.countWaitingListPassengers(trainNo, date, classType);
-
             // If 4 people are on the WL, the next person sees WL-5
             availabilityStr = "WL-" + (wlCount + 1);
         }

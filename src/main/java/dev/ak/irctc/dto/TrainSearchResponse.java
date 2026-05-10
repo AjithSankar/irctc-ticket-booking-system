@@ -10,8 +10,10 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TrainSearchResponse {
-    private String id;
-    private String name;
+    private String trainNo;
+    private String trainName;
+    private String sourceStation;
+    private String destinationStation;
     private String departureTime;
     private String arrivalTime;
     private String duration;
@@ -20,12 +22,12 @@ public class TrainSearchResponse {
     @Setter
     @Getter
     public static class TrainClassDTO {
-        private String type;
+        private String classType;
         private double price;
         private String availability;
         
-        public TrainClassDTO(String type, double price, String availability) {
-            this.type = type;
+        public TrainClassDTO(String classType, double price, String availability) {
+            this.classType = classType;
             this.price = price;
             this.availability = availability;
         }
